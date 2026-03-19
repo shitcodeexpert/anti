@@ -1,0 +1,46 @@
+# =====================================================================
+# requirements.txt — Deepfake Detection, MacBook M4 (Apple Silicon)
+# Проверено: PyTorch 2.4+, MPS backend, без CUDA-зависимостей
+# Установка: pip install -r requirements.txt
+# =====================================================================
+
+# --- PyTorch (Metal/MPS — НЕ используй conda torch, только pip) ---
+torch>=2.4.0
+torchvision>=0.19.0
+torchaudio>=2.4.0
+
+# --- Модели и backbone ---
+timm>=1.0.9                  # ViT, DINOv2, и др. архитектуры
+einops>=0.8.0                # удобные операции с тензорами
+
+# --- Аугментации ---
+albumentations>=1.4.15
+opencv-python-headless>=4.10.0   # headless — без GUI, стабильнее на Mac
+
+# --- Работа с данными ---
+Pillow>=10.4.0
+numpy>=1.26.0
+scipy>=1.14.0                # FFT / DCT для частотных аугментаций
+
+# --- Утилиты ---
+pyyaml>=6.0.2
+tqdm>=4.66.0
+scikit-learn>=1.5.0          # метрики: AUC, accuracy и др.
+
+# --- Логирование ---
+tensorboard>=2.17.0          # локальный логгер (работает без аккаунта)
+wandb>=0.17.0                # опционально — нужен аккаунт wandb.ai
+
+# --- Детекция лиц ---
+mediapipe>=0.10.14           # face detection, работает на ARM64/M4
+
+# --- Загрузка датасетов ---
+kaggle>=1.6.17               # kaggle CLI для скачивания датасетов
+
+# --- Визуализация ---
+matplotlib>=3.9.0
+seaborn>=0.13.0
+
+# --- Дополнительно ---
+requests>=2.32.0             # для скачивания файлов
+gdown>=5.2.0                 # для скачивания с Google Drive

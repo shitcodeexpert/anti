@@ -1,0 +1,131 @@
+# =====================================================================
+# config.yaml — конфигурация проекта deepfake detection
+# =====================================================================
+
+# --- Модель ---
+model:
+  # DINOv2-large: лучший выбор для 2025-2026
+  # Альтернативы: vit_large_patch14_clip_224.openai / vit_base_patch16_224.dino
+  backbone: "vit_small_patch16_224.dino"
+  pretrained: true
+
+  # GenD-подход: замораживаем всё, обучаем только LayerNorm слои
+  # Варианты: "layernorm" | "all" | "head_only"
+  tune_strategy: "layernorm"
+
+  embed_dim: 384           # размер эмбеддинга (ViT-Small = 384)
+  proj_dim: 256            # размер projection head
+  num_classes: 2           # real / fake
+  dropout: 0.1
+
+# --- Loss функция ---
+loss:
+  # Варианты: "arcface" | "supcon" | "ce" | "combined"
+  type: "combined"         # ArcFace + CrossEntropy — сильнейшая комбинация
+
+  arcface:
+    scale: 64.0
+    margin: 0.5
+    weight: 0.5            # вес в combined loss
+
+  supcon:
+    temperature: 0.07
+    weight: 0.3
+
+  ce:
+    weight: 0.2
+    label_smoothing: 0.1
+
+# --- Обучение ---
+training:
+  epochs: 30
+  batch_size: 16           # для M4 с 16GB RAM; уменьши до 8 если OOM
+
+  optimizer:
+    type: "adamw"
+    lr: 3.0e-4             # увеличен в 10 раз для лучшего обучения на новом датасете
+    weight_decay: 1.0e-4
+    betas: [0.9, 0.999]
+
+  scheduler:
+    type: "cosine"         # CosineAnnealingLR
+    warmup_epochs: 3
+    min_lr: 1.0e-7
+
+  # Mixed precision — на MPS используем bfloat16
+  mixed_precision: true
+  precision: "bf16"        # "bf16" или "fp16"
+
+  # torch.compile() — ускоряет на M4 ~20-30%
+  compile_model: false
+  compile_backend: "aot_eager"  # для MPS; "inductor" работает только на CUDA
+
+  device: "mps"            # "mps" для M4, "cpu" как fallback, "cuda" если есть
+  seed: 42
+  grad_clip: 1.0           # gradient clipping для стабильности
+
+# --- Данные ---
+data:
+  # Структура папки:
+  # data/
+  #   train/real/   ← реальные лица
+  #   train/fake/   ← deepfake лица
+  #   val/real/
+  #   val/fake/
+  # Или укажи одну папку, train/val split будет автоматически
+  root: "./data"
+
+  # Форматы поддерживаются: jpg, png, webp (изображения) + mp4, avi, mov (видео)
+  image_size: 224
+  train_split: 0.85
+
+  # Сэмплирование кадров из видео (1 из N кадров)
+  video_frame_step: 10
+
+  # DataLoader
+  num_workers: 4           # на M4: 4-8 оптимально
+  pin_memory: false        # false для MPS (не поддерживается)
+  prefetch_factor: 2
+
+# --- Аугментации ---
+augmentation:
+  # Тренировочные — агрессивные
+  train:
+    jpeg_quality_min: 40
+    jpeg_quality_max: 95
+    gaussian_blur_p: 0.4
+    gaussian_blur_limit: [3, 7]
+    color_jitter_p: 0.5
+    horizontal_flip_p: 0.5
+    rotation_limit: 15
+    # Частотные аугментации (DCT/FFT mixup) — ключевые для детекции
+    frequency_aug_p: 0.4
+    frequency_alpha: 0.3    # сила смешивания частотных компонент
+    # Размытие специфичное для deepfake артефактов
+    iso_noise_p: 0.3
+    grid_distortion_p: 0.2
+
+  # Валидация — только нормализация
+  val:
+    center_crop: true
+
+# --- Логирование ---
+logging:
+  use_wandb: false         # true — нужен wandb login
+  use_tensorboard: true
+  log_dir: "./logs"
+
+  wandb:
+    project: "deepfake-detection-2026"
+    entity: null           # твой username на wandb
+    tags: ["dinov2", "arcface", "gend", "m4"]
+
+  # Как часто логировать метрики
+  log_every_n_steps: 10
+
+# --- Чекпоинты ---
+checkpoint:
+  save_dir: "./checkpoints"
+  save_best: true          # сохранять лучшую модель по val AUC
+  save_every_n_epochs: 5
+  metric: "auc"            # метрика для выбора лучшей модели
