@@ -62,14 +62,16 @@ def get_device(cfg: dict) -> torch.device:
     requested = cfg.get("training", {}).get("device", "auto")
 
     if requested == "auto" or requested is None:
-        if torch.backends.mps.is_available():
-            return torch.device("mps")
-        elif torch.cuda.is_available():
+        if torch.cuda.is_available():
             return torch.device("cuda")
+        elif torch.backends.mps.is_available():
+            return torch.device("mps")
         return torch.device("cpu")
 
     if requested == "mps" and not torch.backends.mps.is_available():
-        print("⚠️  MPS недоступен, переключаюсь на CPU")
+        print("⚠️  MPS недоступен, переключаюсь на CUDA" if torch.cuda.is_available() else "на CPU")
+        if torch.cuda.is_available():
+            return torch.device("cuda")
         return torch.device("cpu")
 
     return torch.device(requested)
